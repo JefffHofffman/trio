@@ -9,7 +9,7 @@ CHUNK = 2**12
 class ProtoChan(trio.abc.ReceiveChannel):
     def __init__(self, receive_stream, proto, chunk=CHUNK, **kw_proto):
         self.rcv = partial(receive_stream.receive_some, chunk)
-        self.get_msgs = deframe(netstring_proto, **kw_proto)
+        self.get_msgs = deframe(proto, **kw_proto)
         self.msgs = iter([])
 
     def receive_nowait(self):
@@ -87,7 +87,7 @@ class ProtoChan(trio.abc.ReceiveChannel):
 
 import pytest
 import trio.testing
-from ._basic_proto import deframe, netstring_proto
+from trio._basic_proto import deframe, netstring_proto
 
 @pytest.fixture
 def make_chan():
@@ -100,14 +100,14 @@ def test_empty(make_chan):
     with pytest.raises(trio.WouldBlock):
         print(chan.receive_nowait())
         
-#async def test_parts():
 async def test_parts(make_chan):
-#    snd, rcv = trio.testing.memory_stream_one_way_pair()
-#    chan = ProtoChan(rcv, netstring_proto)
     snd, chan = make_chan
     await snd.send_all(b'4:Hi')
     with pytest.raises(trio.WouldBlock):
         print(chan.receive_nowait())
+    
+    await snd.send_all(b'ya,')
+    assert await chan.receive() == 'Hiya'
 
 
 
